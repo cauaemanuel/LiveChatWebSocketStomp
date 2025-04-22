@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>💬 Live Chat - GoodBuilder</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background-color: #4a90e2;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    #chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 600px;
+      margin: auto;
+      width: 100%;
+      padding: 1rem;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+    }
+
+    .message {
+      margin-bottom: 0.5rem;
+      padding: 0.3rem;
+    }
+
+    .nickname {
+      font-weight: bold;
+      color: #4a90e2;
+    }
+
+    #message-input {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 5px;
+      background-color: #4a90e2;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #357ac8;
+    }
+
+    #nicknameModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #nicknamePrompt {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    #nicknamePrompt input {
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    #nicknameInput{
+        margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💬 GoodBuilder Live Chat</h1>
+  </header>
+
+  <div id="chat-container">
+    <div id="messages"></div>
+    <div id="message-input">
+      <input type="text" id="message" placeholder="Digite sua mensagem..." />
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
+  </div>
+
+  <div id="nicknameModal">
+    <div id="nicknamePrompt">
+      <h2>Escolha seu nickname</h2>
+      <input type="text" id="nicknameInput" placeholder="Seu nome..." />
+      <button onclick="setNickname()">Entrar</button>
+    </div>
+  </div>
+
+  <script>
+    let stompClient = null;
+    let nickname = "";
+
+    function setNickname() {
+      const input = document.getElementById("nicknameInput");
+      if (input.value.trim() !== "") {
+        nickname = input.value.trim();
+        document.getElementById("nicknameModal").style.display = "none";
+        connect();
+      }
+    }
+
+    function connect() {
+      const socket = new SockJS("http://localhost:8080/chat");
+      stompClient = Stomp.over(socket);
+
+      stompClient.connect({}, () => {
+        console.log("Conectado!");
+
+        stompClient.subscribe("/topic/chat", (message) => {
+          showMessage(message.body);
+        });
+      });
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("message");
+      const text = input.value.trim();
+      if (text !== "") {
+        const fullMessage = nickname + ": " + text;
+        stompClient.send("/app/chat", {}, fullMessage);
+        input.value = "";
+      }
+    }
+
+    function showMessage(text) {
+      const msgEl = document.createElement("div");
+      msgEl.className = "message";
+      msgEl.innerHTML = formatMessage(text);
+      document.getElementById("messages").appendChild(msgEl);
+      document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+    }
+
+    function formatMessage(msg) {
+      const [nick, ...rest] = msg.split(":");
+      return `<span class="nickname">${nick}:</span> ${rest.join(":").trim()}`;
+    }
+  </script>
+</body>
+</html>
